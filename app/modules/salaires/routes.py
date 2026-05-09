@@ -41,6 +41,7 @@ def serialize_salaire(salaire, user=None):
         "primes": float(primes_total),
         "deductions": float(deductions_total),
         "net": float(net_total),
+        "devise": salaire.devise,
         "status": salaire.status,
         "paid_at": salaire.paid_at.isoformat() if salaire.paid_at else None,
         "created_at": salaire.created_at.isoformat() if salaire.created_at else None,
@@ -125,6 +126,10 @@ def update_salaire(salaire_id):
         salaire.primes = Salaire.get_employee_primes_total(salaire.employee_id)
 
         salaire.deductions = Salaire.get_employee_deductions_total(salaire.employee_id)
+
+        devise = resolve_value(data, "devise", "currency")
+        if devise is not None:
+            salaire.devise = str(devise).upper()
 
         status = resolve_value(data, "status")
         if status is not None:

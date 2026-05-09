@@ -15,6 +15,7 @@ class Salaire(db.Model):
     primes = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     deductions = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     net = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    devise = db.Column(db.String(10), nullable=False, default="USD")
     status = db.Column(db.String(20), nullable=False, default="pending")
     paid_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
