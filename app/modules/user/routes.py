@@ -5,7 +5,13 @@ from decimal import Decimal
 from ...extensions import db
 from ...models.user import User
 from ...models.salaire import Salaire
-
+# Ajoute ces imports aux imports existants
+import smtplib
+import secrets
+import string
+import bcrypt
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 bp = Blueprint("users", __name__, url_prefix="/users")
 
 
@@ -167,3 +173,97 @@ def delete_user(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+    # ── Helpers ─────────────────────────────────────────────────
+
+def generate_temp_password(length=10):
+    characters = string.ascii_letters + string.digits + "!@#$"
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+
+import os
+
+def send_reset_email(to_email, nom_complet, temp_password):
+
+    MAIL_SERVER = os.getenv("MAIL_SERVER")
+    MAIL_PORT = int(os.getenv("MAIL_PORT"))
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+
+    msg = MIMEMultipart("alternative")
+
+    msg["Subject"] = "Réinitialisation de votre mot de passe"
+    msg["From"] = MAIL_USERNAME
+    msg["To"] = to_email
+
+    html = f"""
+    <html>
+    <body>
+
+        <h2>Bonjour {nom_complet},</h2>
+
+        <p>Votre mot de passe temporaire est :</p>
+
+        <h3 style="color:#2d6cdf;">
+            {temp_password}
+        </h3>
+
+        <p>
+            Veuillez changer votre mot de passe après connexion.
+        </p>
+
+    </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html, "html"))
+
+    server = smtplib.SMTP(MAIL_SERVER, MAIL_PORT)
+
+    server.starttls()
+
+    server.login(MAIL_USERNAME, MAIL_PASSWORD)
+
+    server.sendmail(
+        MAIL_USERNAME,
+        to_email,
+        msg.as_string()
+    )
+
+    server.quit()
+
+# 🔑 FORGOT PASSWORD
+@bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip()
+
+    if not email:
+        return jsonify({"error": "Email requis"}), 400
+
+    # 1. Chercher l'email dans la BD via SQLAlchemy (comme ton code existant)
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error": "Email introuvable"}), 404
+
+    if user.status == "SUSPENDED":
+        return jsonify({"error": "Compte suspendu"}), 403
+
+    try:
+        # 2. Générer mot de passe temporaire
+        temp_password = generate_temp_password()
+
+        # 3. Hasher et sauvegarder (utilise set_password() qui existe déjà dans ton modèle User)
+        user.set_password(temp_password)
+        db.session.commit()
+
+        # 4. Envoyer l'email
+        send_reset_email(user.email, user.nom_complet, temp_password)
+
+        return jsonify({
+            "message": f"Mot de passe temporaire envoyé à {email}"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
