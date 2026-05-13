@@ -8,8 +8,7 @@ class Salaire(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    nom_complet = db.Column(db.String(255), nullable=False)
-    dept = db.Column(db.String(100), nullable=True)
+   
     periode = db.Column(db.String(60), nullable=False)
     salaire_base = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     primes = db.Column(db.Numeric(10, 2), nullable=False, default=0)
